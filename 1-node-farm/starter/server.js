@@ -1,20 +1,11 @@
 const http = require("http");
 const url = require("url");
 const fs = require("fs");
+const { truncate } = require("fs").promises;
 
-const replaceTemplate = (template, product) => {
-  let output = template.replace(/{%PRODUCTNAME%}/g, product.productName);
-  output = output.replace(/{%IMAGE%}/g, product.image);
-  output = output.replace(/{%PRICE%}/g, product.price);
-  output = output.replace(/{%FROM%}/g, product.from);
-  output = output.replace(/{%NUTRIENTS%}/g, product.nutrients);
-  output = output.replace(/{%QUANTITY%}/g, product.quantity);
-  output = output.replace(/{%DESCRIPTION%}/g, product.description);
-  output = output.replace(/{%ID%}/g, product.id);
-  if (!product.organic)
-    output = output.replace(/{%NOTORGANIC%}/g, "not-organic");
-  return output;
-};
+const slugify = require("slugify");
+
+const replaceTemplate = require("./modules/replaceTemplate");
 
 const template_overview = fs.readFileSync(
   `${__dirname}/templates/template-overview.html`,
@@ -25,7 +16,7 @@ const template_card = fs.readFileSync(
   "utf-8"
 );
 
-const tempplate_product = fs.readFileSync(
+const template_product = fs.readFileSync(
   `${__dirname}/templates/template-product.html`,
   "utf-8"
 );
@@ -33,12 +24,17 @@ const tempplate_product = fs.readFileSync(
 const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, "utf-8");
 const data_obj = JSON.parse(data);
 
-const server = http.createServer((req, res) => {
-  console.log(req.url);
+const slugs = data_obj.map((el) => slugify(el.productName, { lower: true }));
+console.log(slugs);
 
-  const path_name = req.url;
+const server = http.createServer((req, res) => {
+  //console.log(url.parse(req.url, true));
+  const { query, pathname } = url.parse(req.url, true);
+  //console.log(query);
+  //console.log(pathname);
+  //const path_name = req.url;
   // OVERVIEW
-  if (path_name === "/" || path_name === "/overview") {
+  if (pathname === "/" || pathname === "/overview") {
     res.writeHead(200, { "Content-Type": "text/html" });
     const cards_html = data_obj
       .map((el) => replaceTemplate(template_card, el))
@@ -47,11 +43,14 @@ const server = http.createServer((req, res) => {
     res.end(output);
 
     //PRODUCT
-  } else if (path_name === "/product") {
-    res.end("This is the product");
+  } else if (pathname === "/product") {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    const product = data_obj[query.id];
+    const output = replaceTemplate(template_product, product);
+    res.end(output);
 
     // API
-  } else if (path_name === "/api") {
+  } else if (pathname === "/api") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(data);
   } else {
