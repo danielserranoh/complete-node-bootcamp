@@ -1,34 +1,32 @@
-const fs = require("fs");
 const express = require("express");
+const morgan = require("morgan");
+
+const tourRouter = require("./routes/tourRoutes");
+const userRouter = require("./routes/userRoutes");
 
 const app = express();
 
-// app.get("/", (req, res) => {
-//   res
-//     .status(200)
-//     .json({ message: "Hello from the server side", app: "Natours" });
-// });
-// app.post("/", (req, res) => {
-//   res.send("You can post to this endpoint...");
-// });
+//  1) Middlewares
 
-const tours = JSON.parse(
-  fs.readFileSync(`${__dirname}/dev-data/data/tours-simple.json`)
-);
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
+app.use(express.json());
 
-// by adding the info in the res.json, () we cofigure the response format to Jsend
-app.get("/api/v1/tours", (req, res) => {
-  res.status(200).json({
-    status: "success",
-    results: tours.length,
-    data: {
-      tours: tours,
-    },
-  });
+app.use(express.static(`${__dirname}/public`));
+
+app.use((req, res, next) => {
+  console.log("Hello from the middleware 🖖");
+  next();
 });
 
-const port = 3000;
-
-app.listen(port, () => {
-  console.log(`app running on port ${port} ...`);
+app.use((req, res, next) => {
+  req.requestTime = new Date().toISOString();
+  next();
 });
+
+// mounting the routers
+app.use("/api/v1/tours", tourRouter);
+app.use("/api/v1/users", userRouter);
+
+module.exports = app;
